@@ -10,7 +10,6 @@ import { sendHttpRequest } from './utils/httpClient';
 import './App.css';
 
 const App: React.FC = () => {
-  // ---------- Must be defined before it is used ----------
   const createEmptyRequest = (): RequestData => ({
     method: 'GET',
     url: '',
@@ -19,7 +18,6 @@ const App: React.FC = () => {
     body: '',
   });
 
-  // Core state
   const [tabs, setTabs] = useLocalStorage<RequestTab[]>('api-client-tabs', [
     { id: '1', name: 'Tab 1', request: createEmptyRequest() },
   ]);
@@ -34,7 +32,6 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useLocalStorage<boolean>('dark-mode', false);
 
-  // Apply dark mode
   useEffect(() => {
     if (darkMode) {
       document.body.classList.add('dark');
@@ -89,7 +86,6 @@ const App: React.FC = () => {
     if (!activeTab) return;
     const req = activeTab.request;
 
-    // Validation
     if (!req.url.trim()) {
       setResponse({ status: null, body: '', error: 'URL cannot be empty' });
       return;
@@ -105,7 +101,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Add to history (limit to 100)
     setHistory((prev: RequestData[]) => [req, ...prev].slice(0, 100));
 
     setLoading(true);
@@ -141,6 +136,20 @@ const App: React.FC = () => {
         return [...prev, { name: collectionName, requests: [newRequest] }];
       }
     });
+  };
+
+  const deleteRequestFromCollection = (collectionName: string, requestIndex: number) => {
+    setCollections((prev: Collection[]) =>
+      prev.map((c: Collection) =>
+        c.name === collectionName
+          ? { ...c, requests: c.requests.filter((_, i) => i !== requestIndex) }
+          : c
+      )
+    );
+  };
+
+  const deleteCollection = (collectionName: string) => {
+    setCollections((prev: Collection[]) => prev.filter((c: Collection) => c.name !== collectionName));
   };
 
   const loadRequestFromCollection = (request: RequestData) => {
@@ -191,6 +200,8 @@ const App: React.FC = () => {
         onSaveCurrent={saveCurrentToCollection}
         onLoadRequest={loadRequestFromCollection}
         onLoadHistory={loadHistoryRequest}
+        onDeleteRequest={deleteRequestFromCollection}
+        onDeleteCollection={deleteCollection}
         onClearHistory={clearHistory}
         onExport={exportCollections}
         onImport={importCollections}
@@ -221,4 +232,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-

@@ -8,6 +8,8 @@ interface Props {
   onSaveCurrent: (collectionName: string) => void;
   onLoadRequest: (request: RequestData) => void;
   onLoadHistory: (request: RequestData) => void;
+  onDeleteRequest: (collectionName: string, requestIndex: number) => void;
+  onDeleteCollection: (collectionName: string) => void;
   onClearHistory: () => void;
   onExport: () => void;
   onImport: (file: File) => void;
@@ -19,6 +21,8 @@ const CollectionsSidebar: React.FC<Props> = ({
   onSaveCurrent,
   onLoadRequest,
   onLoadHistory,
+  onDeleteRequest,
+  onDeleteCollection,
   onClearHistory,
   onExport,
   onImport,
@@ -83,19 +87,39 @@ const CollectionsSidebar: React.FC<Props> = ({
       <div className="collections-list">
         {collections.map(coll => (
           <div key={coll.name} className="collection-item">
-            <div className="collection-header" onClick={() => toggleExpand(coll.name)}>
-              <span>{expandedCollections.has(coll.name) ? '▼' : '▶'}</span>
-              <strong>{coll.name}</strong>
+            <div className="collection-header">
+              <div className="collection-title" onClick={() => toggleExpand(coll.name)}>
+                <span className="toggle-icon">{expandedCollections.has(coll.name) ? '▼' : '▶'}</span>
+                <strong>{coll.name}</strong>
+              </div>
+              <button
+                className="delete-collection-btn"
+                onClick={() => onDeleteCollection(coll.name)}
+                title="Delete collection"
+              >
+                🗑️
+              </button>
             </div>
             {expandedCollections.has(coll.name) && (
               <div className="requests-list">
                 {coll.requests.map((req, idx) => (
-                  <div
-                    key={idx}
-                    className="request-item"
-                    onClick={() => onLoadRequest(req)}
-                  >
-                    {req.name || `${req.method} ${req.url.substring(0, 40)}`}
+                  <div key={idx} className="request-item-container">
+                    <div
+                      className="request-item"
+                      onClick={() => onLoadRequest(req)}
+                    >
+                      {req.name || `${req.method} ${req.url.substring(0, 40)}`}
+                    </div>
+                    <button
+                      className="delete-request-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteRequest(coll.name, idx);
+                      }}
+                      title="Delete request"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))}
               </div>
@@ -104,7 +128,6 @@ const CollectionsSidebar: React.FC<Props> = ({
         ))}
       </div>
 
-      {/* History Section */}
       <div className="history-section">
         <div className="history-header">
           <h3>History</h3>
