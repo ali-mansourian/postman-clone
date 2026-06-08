@@ -1,0 +1,71 @@
+You are building a browser‑based API client (Postman clone).  
+Technology stack: **TypeScript mandatory**, React allowed (use it), Vite for build, plain CSS, no Next.js.
+
+#### Strict compilation requirements
+- tsconfig.json must use `"strict": true` and `"noUnusedLocals": true`, `"noUnusedParameters": true`.
+- All callback parameters (e.g., `prev` in setState, `.map`, `.filter`) must have **explicit types** – no implicit `any`.
+- Importing `.css` files requires a `src/vite-env.d.ts` file containing `/// <reference types="vite/client" />`.
+- The `useLocalStorage` hook’s setter **must be typed as `Dispatch<SetStateAction<T>>`** (not just `(value: T) => void`) so that functional updaters like `setTabs(prev => ...)` are accepted.
+- Any helper function used inside `useState` initialisers must be defined **before** the state declarations to avoid TDZ errors.
+
+#### Project structure
+Provide all files in separate code blocks with the filename as a comment at the top.  
+Structure:
+postman-clone/
+├── package.json
+├── tsconfig.json
+├── tsconfig.node.json
+├── vite.config.ts
+├── index.html
+└── src/
+    ├── main.tsx
+    ├── index.css
+    ├── vite-env.d.ts
+    ├── App.tsx
+    ├── App.css
+    ├── types/
+    │   └── index.ts
+    ├── hooks/
+    │   └── useLocalStorage.ts
+    ├── utils/
+    │   ├── validation.ts
+    │   └── httpClient.ts
+    └── components/
+        ├── TabBar.tsx / .css
+        ├── RequestPanel.tsx / .css
+        ├── ResponsePanel.tsx / .css
+        ├── CollectionsSidebar.tsx / .css
+        ├── KeyValueEditor.tsx / .css
+        ├── RawBodyEditor.tsx / .css
+        ├── Settings.tsx / .css
+
+#### 12 Core Functionalities (exact requirements)
+1. Responsive UI with dark mode toggle (saved to localStorage).  
+2. HTTP method dropdown: GET, POST, PUT, PATCH, DELETE.  
+3. URL input with pre‑send validation (non‑empty, valid HTTP/HTTPS). Show error and block send.  
+4. Key‑value list for query parameters; editing must automatically update the URL field.  
+5. Key‑value list for request headers.  
+6. Raw body editor (textarea) accepting text or JSON; for POST/PUT/PATCH it is sent as request body.  
+7. Response area showing HTTP status code (colored badge) and the response text.  
+8. Error management: network errors, invalid URL, server unreachable – displayed as user‑friendly messages.  
+9. “Clear All” button resets method, URL, params, headers, body to defaults.  
+10. Request history saved to localStorage (max 100); collections saved to localStorage; both persist across sessions.  
+11. Export collections to a JSON file, import from a valid JSON file.  
+12. Multi‑tab support: each tab has its own method, URL, params, headers, body. Tabs can be added, closed, renamed.
+
+#### Wireframe concept (not pixel‑perfect)
+- Left sidebar: Collections (expandable) + History (chronological list).
+- Top bar: Settings (dark mode toggle).
+- Main area top: Tabs (each with name and close button).
+- Below tabs: URL bar (method dropdown, URL input, Send, Clear All).
+- Sectioned area: Query Parameters editor, Headers editor, Body editor.
+- Bottom: Response panel (status code badge, response body/error).
+
+#### Additional implementation details to prevent any TypeScript errors
+- In `useLocalStorage`, use `Dispatch<SetStateAction<T>>` as the setter type.
+- In `App.tsx`, define `createEmptyRequest` before the `useLocalStorage` calls that use it.
+- In all `.map()`, `.filter()`, `.find()`, explicitly type the callback parameter (e.g., `(t: RequestTab) => ...`).
+- In `RequestPanel.tsx`, add a `useEffect` that automatically rebuilds the URL from query parameters, omitting the URL in the dependency array to avoid loops.
+- In `httpClient.ts`, build the final URL by adding query params, build headers, and only attach a body for non‑GET/HEAD methods (do NOT auto‑set Content‑Type; let the user’s headers decide).
+- In `CollectionsSidebar.tsx`, include both collections and history sections.
+- Add a `<meta>` tag in `index.html` to allow `unsafe-eval` for Vite’s HMR (Content-Security-Policy).

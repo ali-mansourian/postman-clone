@@ -1,0 +1,196 @@
+Below is the **refined and complete test suite**, now using `https://httpbin.org` for all request/response checks (body, headers, status codes, error simulations) and including the new **delete request & collection** features.
+
+---
+
+## 🧪 API Client – Final Test Suite (updated)
+
+**Preparation:**  
+Start the app with `npm run dev`, open `http://localhost:5173`.  
+Open browser DevTools (F12) → **Console** and **Application / Storage** to inspect `localStorage`.
+
+---
+
+### ✅ 1. User Interface & Dark Mode
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1.1 | First load of the app. | You see: left sidebar (Collections, History), top bar (dark‑mode toggle), tab bar (one default tab “Tab 1”), request area (method, URL, query params, headers, body), Response panel at the bottom. |
+| 1.2 | Click the dark‑mode toggle (🌙 Dark Mode). | Background turns dark, text light. Toggle label changes to “☀️ Light Mode”. |
+| 1.3 | Refresh (F5). | Dark mode remains on (persisted). |
+| 1.4 | Switch back to light mode. | UI returns to light colours and stays after reload. |
+
+---
+
+### ✅ 2. HTTP Method Selection
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 2.1 | In the default tab, note the method dropdown. | Shows “GET”. |
+| 2.2 | Open dropdown and select **POST**. | Dropdown now shows POST. |
+| 2.3 | Try each remaining method (PUT, PATCH, DELETE). | All select correctly. |
+
+---
+
+### ✅ 3. URL Input & Validation
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 3.1 | Leave URL empty → click **Send**. | Response shows error: “URL cannot be empty”. |
+| 3.2 | Enter `htp://invalid-url` → Send. | “Invalid URL format”. |
+| 3.3 | Enter `ftp://example.com` → Send. | “Only HTTP and HTTPS URLs are allowed”. |
+| 3.4 | Enter `https://httpbin.org/get` → Send. | No validation error; request sent successfully (see Response tests). |
+
+---
+
+### ✅ 4. Add / Edit / Delete Query Parameters
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 4.1 | In “Query Parameters”, click **+ Add**. | New empty row appears. |
+| 4.2 | Set Key = `userId`, Value = `1`. | URL auto‑appends `?userId=1`. |
+| 4.3 | Add another param: Key = `sort`, Value = `desc`. | URL becomes `…?userId=1&sort=desc`. |
+| 4.4 | Edit first param Key to `user`. | URL updates to `?user=1&sort=desc`. |
+| 4.5 | Delete the `sort` param (✕). | URL reverts to `?user=1`. |
+| 4.6 | Delete all params. | URL has no query string. |
+| 4.7 | Send a request to `https://httpbin.org/get` with a param `test=123`. | Response `args` object contains `{"test": "123"}`. |
+
+---
+
+### ✅ 5. Add / Edit / Delete Headers
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 5.1 | In “Headers”, add `Authorization` = `Bearer test123`. | Row appears. |
+| 5.2 | Add another header: `X-Custom` = `hello`. | Second row appears. |
+| 5.3 | Edit `Authorization` value to `Bearer changed`. | The value updates. |
+| 5.4 | Delete the `X-Custom` header. | It disappears. |
+| 5.5 | Send a GET request to `https://httpbin.org/headers` with the `Authorization` header present. | Response `headers` object contains `"Authorization": "Bearer changed"`. |
+
+---
+
+### ✅ 6. Raw Body Editor (Text / JSON)
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 6.1 | Method: **POST**, URL: `https://httpbin.org/post`. | – |
+| 6.2 | In Body, paste: `{"title":"test","body":"hello","userId":1}`. | – |
+| 6.3 | Click **Send**. | Status: `200`. Response `json` equals the sent object, `data` contains the raw string. |
+| 6.4 | Change body to plain text `just plain text`. | Click Send. Response `data` shows `"just plain text"` and `json` is `null`. |
+| 6.5 | **PUT** request to `https://httpbin.org/put` with a different JSON body. | Body echoed back correctly. |
+
+---
+
+### ✅ 7. Response Status Code Display
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 7.1 | GET `https://httpbin.org/get`. | Status badge shows **green 200**; body contains JSON. |
+| 7.2 | GET `https://httpbin.org/status/404`. | Badge shows **orange/red 404**. |
+| 7.3 | GET `https://httpbin.org/status/500`. | Badge shows **red 500**. |
+| 7.4 | POST to `https://httpbin.org/post`. | Badge **200** (or 201 if you use another service). |
+
+---
+
+### ✅ 8. Error Management
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 8.1 | Disconnect your network (or turn off Wi‑Fi). Send any valid request. | Response shows “Network error” (or “Failed to fetch”). |
+| 8.2 | Reconnect, try to reach `https://10.255.255.1` (unreachable). | After timeout, error message appears (e.g., “Network error”). |
+| 8.3 | Invalid URL (tested above). | Clear error, no crash. |
+
+---
+
+### ✅ 9. Clear All Fields
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 9.1 | Fill in URL, params, headers, body. | – |
+| 9.2 | Click **Clear All**. | Everything resets: method → GET, URL empty, one empty param row, one empty header row, body empty. |
+
+---
+
+### ✅ 10. History & Collections Persistence
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 10.1 | Send a GET to `https://httpbin.org/get`. | History entry appears: `GET https://httpbin.org/get`. |
+| 10.2 | Send another request to a different URL. | History shows newest first. |
+| 10.3 | Click on a history item. | Current tab updates to that request’s method, URL, params, etc. |
+| 10.4 | Reload the page. | History still present. |
+| 10.5 | Click **Clear** (in History header). | All history items gone. |
+| 10.6 | Reload. History remains empty. | – |
+| 10.7 | Set up a request (e.g., GET `httpbin.org/get` with a param). Click **💾 Save Current**, enter collection name “Test Collection”. | New collection appears with the saved request inside. |
+| 10.8 | Reload. Collection and its request persist. | – |
+
+---
+
+### ✅ 11. Delete Requests & Collections (NEW)
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 11.1 | In “Test Collection”, expand it. You’ll see one saved request. Click the **✕** next to that request. | The request disappears from the collection. |
+| 11.2 | Expand again, delete the last remaining request. | The collection still exists but shows no requests (or an empty list). |
+| 11.3 | Click the **🗑️** button next to the collection name. | The whole collection disappears immediately. |
+| 11.4 | Reload the page. | The deleted collection and its requests are gone permanently. |
+| 11.5 | Delete all remaining collections (if any). | Sidebar shows no collections. |
+
+---
+
+### ✅ 12. Import / Export Collections
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 12.1 | Create two collections with a few requests. Click **📤 Export**. | File `collections.json` downloads. It contains a valid JSON array of your collections. |
+| 12.2 | Delete all collections (or use a fresh browser session). | – |
+| 12.3 | Click **📥 Import**, select the `collections.json` file. | All collections and requests reappear. |
+| 12.4 | Try importing a text file (not valid JSON). | Alert: “Invalid JSON”. |
+| 12.5 | Import a JSON file that is not an array (e.g., `{}`). | Alert: “Invalid collections file”. |
+
+---
+
+### ✅ 13. Multi‑Tab Support
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 13.1 | Click **+ New Tab**. | A new tab “Tab 2” appears, becomes active, and shows an empty request panel. |
+| 13.2 | In Tab 2, set method POST, URL `https://httpbin.org/post`, body `{"test":1}`. | – |
+| 13.3 | Switch back to **Tab 1**. | Tab 1 shows its previous state (unchanged). Tab 2 keeps its data. |
+| 13.4 | Double‑click on Tab 1’s name → rename to “My GET” → Enter. | Tab name updates. |
+| 13.5 | Close Tab 2 (✕). | Tab 2 gone; Tab 1 remains. |
+| 13.6 | Try to close the last tab. | Nothing happens (at least one tab stays). |
+| 13.7 | Reload the page. | All open tabs (with their data) are restored. |
+
+---
+
+### 🧠 Additional Edge Cases
+
+- **Empty parameter value:** Key `foo`, value blank → URL shows `?foo=`. Delete it, URL cleans up.
+- **Multiple params with same key:** add `key=a` then `key=b`. URL shows `?key=a&key=b`. httpbin’s `/get` args will show `key: ["a", "b"]`.
+- **Body on GET request:** Enter body text, send GET to httpbin/get – body is **not sent** (the app ignores it). Request works fine.
+- **Long URL:** Paste a long URL with many params – URL input displays it correctly; param editor syncs.
+- **Concurrent tabs and collections:** Save a request from one tab, switch to another, load it – works independently.
+- **Delete collection while expanded:** Collection disappears, no UI glitch.
+
+---
+
+### 📊 Coverage Summary
+
+| Functionality | Tests |
+|---------------|-------|
+| UI & Dark Mode | 1.1–1.4 |
+| Method Selection | 2.1–2.3 |
+| URL Validation | 3.1–3.4 |
+| Query Parameters | 4.1–4.7 |
+| Headers | 5.1–5.5 |
+| Raw Body | 6.1–6.5 |
+| Response Status | 7.1–7.4 |
+| Error Management | 8.1–8.3 |
+| Clear All | 9.1–9.2 |
+| History & Collections | 10.1–10.8 |
+| Delete Requests & Collections | 11.1–11.5 |
+| Import/Export | 12.1–12.5 |
+| Multi‑Tab | 13.1–13.7 |
+
+Everything is now covered, including the new deletion features.  
+If any step fails, double‑check the exact file code and restart the dev server.

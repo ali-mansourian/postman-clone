@@ -1,0 +1,1553 @@
+```text
+// package.json
+```
+```json
+{
+  "name": "api-client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.55.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8"
+  }
+}
+```
+
+```text
+// tsconfig.json
+```
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
+```
+
+```text
+// tsconfig.node.json
+```
+```json
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["vite.config.ts"]
+}
+```
+
+```text
+// vite.config.ts
+```
+```typescript
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+})
+```
+
+```text
+// index.html
+```
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval' 'unsafe-inline';" />
+    <title>API Client</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+```
+
+```text
+// src/main.tsx
+```
+```typescript
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+```
+
+```text
+// src/index.css
+```
+```css
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+body.dark {
+  background: #111827;
+  color: #f9fafb;
+}
+```
+
+```text
+// src/vite-env.d.ts
+```
+```typescript
+/// <reference types="vite/client" />
+```
+
+```text
+// src/App.tsx
+```
+```typescript
+import React, { useState, useEffect } from 'react';
+import TabBar from './components/TabBar';
+import RequestPanel from './components/RequestPanel';
+import ResponsePanel from './components/ResponsePanel';
+import CollectionsSidebar from './components/CollectionsSidebar';
+import Settings from './components/Settings';
+import { useLocalStorage } from './hooks/useLocalStorage';
+import { RequestTab, Collection, RequestData } from './types';
+import { sendHttpRequest } from './utils/httpClient';
+import './App.css';
+
+const App: React.FC = () => {
+  const createEmptyRequest = (): RequestData => ({
+    method: 'GET',
+    url: '',
+    params: [{ key: '', value: '' }],
+    headers: [{ key: '', value: '' }],
+    body: '',
+  });
+
+  const [tabs, setTabs] = useLocalStorage<RequestTab[]>('api-client-tabs', [
+    { id: '1', name: 'Tab 1', request: createEmptyRequest() },
+  ]);
+  const [activeTabId, setActiveTabId] = useState<string>(tabs[0]?.id || '1');
+  const [collections, setCollections] = useLocalStorage<Collection[]>('api-client-collections', []);
+  const [history, setHistory] = useLocalStorage<RequestData[]>('api-client-history', []);
+  const [response, setResponse] = useState<{ status: number | null; body: string; error: string | null }>({
+    status: null,
+    body: '',
+    error: null,
+  });
+  const [loading, setLoading] = useState(false);
+  const [darkMode, setDarkMode] = useLocalStorage<boolean>('dark-mode', false);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add('dark');
+    } else {
+      document.body.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  const getActiveTab = () => tabs.find((t: RequestTab) => t.id === activeTabId);
+
+  const updateActiveTab = (updates: Partial<RequestTab>) => {
+    setTabs((prev: RequestTab[]) =>
+      prev.map((t: RequestTab) => (t.id === activeTabId ? { ...t, ...updates } : t))
+    );
+  };
+
+  const updateActiveRequest = (updates: Partial<RequestData>) => {
+    const active = getActiveTab();
+    if (active) {
+      updateActiveTab({ request: { ...active.request, ...updates } });
+    }
+  };
+
+  const addTab = () => {
+    const newId = Date.now().toString();
+    const newTab: RequestTab = {
+      id: newId,
+      name: `Tab ${tabs.length + 1}`,
+      request: createEmptyRequest(),
+    };
+    setTabs([...tabs, newTab]);
+    setActiveTabId(newId);
+  };
+
+  const closeTab = (id: string) => {
+    if (tabs.length === 1) return;
+    const newTabs = tabs.filter((t: RequestTab) => t.id !== id);
+    setTabs(newTabs);
+    if (activeTabId === id) {
+      setActiveTabId(newTabs[0].id);
+    }
+  };
+
+  const renameTab = (id: string, newName: string) => {
+    setTabs((prev: RequestTab[]) =>
+      prev.map((t: RequestTab) => (t.id === id ? { ...t, name: newName } : t))
+    );
+  };
+
+  const handleSendRequest = async () => {
+    const activeTab = getActiveTab();
+    if (!activeTab) return;
+    const req = activeTab.request;
+
+    if (!req.url.trim()) {
+      setResponse({ status: null, body: '', error: 'URL cannot be empty' });
+      return;
+    }
+    try {
+      const parsed = new URL(req.url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        setResponse({ status: null, body: '', error: 'Only HTTP and HTTPS URLs are allowed' });
+        return;
+      }
+    } catch {
+      setResponse({ status: null, body: '', error: 'Invalid URL format' });
+      return;
+    }
+
+    setHistory((prev: RequestData[]) => [req, ...prev].slice(0, 100));
+
+    setLoading(true);
+    setResponse({ status: null, body: '', error: null });
+
+    try {
+      const result = await sendHttpRequest(req);
+      setResponse({ status: result.status, body: result.data, error: null });
+    } catch (err: any) {
+      setResponse({ status: null, body: '', error: err.message || 'Network error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearAllFields = () => {
+    updateActiveRequest(createEmptyRequest());
+  };
+
+  const saveCurrentToCollection = (collectionName: string) => {
+    const activeTab = getActiveTab();
+    if (!activeTab) return;
+    const newRequest = { ...activeTab.request, name: activeTab.name };
+    setCollections((prev: Collection[]) => {
+      const existing = prev.find((c: Collection) => c.name === collectionName);
+      if (existing) {
+        return prev.map((c: Collection) =>
+          c.name === collectionName
+            ? { ...c, requests: [...c.requests, newRequest] }
+            : c
+        );
+      } else {
+        return [...prev, { name: collectionName, requests: [newRequest] }];
+      }
+    });
+  };
+
+  const deleteRequestFromCollection = (collectionName: string, requestIndex: number) => {
+    setCollections((prev: Collection[]) =>
+      prev.map((c: Collection) =>
+        c.name === collectionName
+          ? { ...c, requests: c.requests.filter((_, i) => i !== requestIndex) }
+          : c
+      )
+    );
+  };
+
+  const deleteCollection = (collectionName: string) => {
+    setCollections((prev: Collection[]) => prev.filter((c: Collection) => c.name !== collectionName));
+  };
+
+  const loadRequestFromCollection = (request: RequestData) => {
+    updateActiveRequest(request);
+  };
+
+  const loadHistoryRequest = (request: RequestData) => {
+    updateActiveRequest(request);
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+  };
+
+  const exportCollections = () => {
+    const dataStr = JSON.stringify(collections, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'collections.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importCollections = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e: ProgressEvent<FileReader>) => {
+      try {
+        const imported = JSON.parse(e.target?.result as string);
+        if (Array.isArray(imported)) {
+          setCollections(imported);
+        } else {
+          alert('Invalid collections file');
+        }
+      } catch {
+        alert('Invalid JSON');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div className="app">
+      <CollectionsSidebar
+        collections={collections}
+        history={history}
+        onSaveCurrent={saveCurrentToCollection}
+        onLoadRequest={loadRequestFromCollection}
+        onLoadHistory={loadHistoryRequest}
+        onDeleteRequest={deleteRequestFromCollection}
+        onDeleteCollection={deleteCollection}
+        onClearHistory={clearHistory}
+        onExport={exportCollections}
+        onImport={importCollections}
+      />
+      <div className="main-area">
+        <Settings darkMode={darkMode} setDarkMode={setDarkMode} />
+        <TabBar
+          tabs={tabs}
+          activeId={activeTabId}
+          onSelect={setActiveTabId}
+          onClose={closeTab}
+          onRename={renameTab}
+          onAdd={addTab}
+        />
+        {getActiveTab() && (
+          <RequestPanel
+            request={getActiveTab()!.request}
+            onChange={updateActiveRequest}
+            onSend={handleSendRequest}
+            onClear={clearAllFields}
+            loading={loading}
+          />
+        )}
+        <ResponsePanel response={response} loading={loading} />
+      </div>
+    </div>
+  );
+};
+
+export default App;
+```
+
+```text
+// src/App.css
+```
+```css
+.app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+```
+
+```text
+// src/types/index.ts
+```
+```typescript
+export interface KeyValuePair {
+  key: string;
+  value: string;
+}
+
+export interface RequestData {
+  method: string;
+  url: string;
+  params: KeyValuePair[];
+  headers: KeyValuePair[];
+  body: string;
+  name?: string;
+}
+
+export interface RequestTab {
+  id: string;
+  name: string;
+  request: RequestData;
+}
+
+export interface Collection {
+  name: string;
+  requests: RequestData[];
+}
+```
+
+```text
+// src/hooks/useLocalStorage.ts
+```
+```typescript
+import { useState, useEffect, Dispatch, SetStateAction } from 'react';
+
+export function useLocalStorage<T>(
+  key: string,
+  initialValue: T
+): [T, Dispatch<SetStateAction<T>>] {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch {
+      return initialValue;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(storedValue));
+    } catch (error) {
+      console.error(error);
+    }
+  }, [key, storedValue]);
+
+  return [storedValue, setStoredValue];
+}
+```
+
+```text
+// src/utils/validation.ts
+```
+```typescript
+export function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+```
+
+```text
+// src/utils/httpClient.ts
+```
+```typescript
+import { RequestData, KeyValuePair } from '../types';
+
+function buildUrlWithParams(baseUrl: string, params: KeyValuePair[]): string {
+  const url = new URL(baseUrl);
+  params.forEach(p => {
+    if (p.key.trim()) {
+      url.searchParams.append(p.key, p.value);
+    }
+  });
+  return url.toString();
+}
+
+function buildHeaders(headers: KeyValuePair[]): Record<string, string> {
+  const obj: Record<string, string> = {};
+  headers.forEach(h => {
+    if (h.key.trim()) {
+      obj[h.key] = h.value;
+    }
+  });
+  return obj;
+}
+
+export async function sendHttpRequest(req: RequestData): Promise<{ status: number; data: string }> {
+  const finalUrl = buildUrlWithParams(req.url, req.params);
+  const headers = buildHeaders(req.headers);
+
+  const fetchOptions: RequestInit = {
+    method: req.method,
+    headers,
+  };
+
+  if (req.method !== 'GET' && req.method !== 'HEAD' && req.body.trim()) {
+    fetchOptions.body = req.body;
+  }
+
+  const response = await fetch(finalUrl, fetchOptions);
+  const text = await response.text();
+  return { status: response.status, data: text };
+}
+```
+
+```text
+// src/components/TabBar.tsx
+```
+```typescript
+import React, { useState } from 'react';
+import { RequestTab } from '../types';
+import './TabBar.css';
+
+interface Props {
+  tabs: RequestTab[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  onClose: (id: string) => void;
+  onRename: (id: string, newName: string) => void;
+  onAdd: () => void;
+}
+
+const TabBar: React.FC<Props> = ({ tabs, activeId, onSelect, onClose, onRename, onAdd }) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+
+  const handleDoubleClick = (tab: RequestTab) => {
+    setEditingId(tab.id);
+    setEditName(tab.name);
+  };
+
+  const handleRenameSubmit = (id: string) => {
+    if (editName.trim()) {
+      onRename(id, editName.trim());
+    }
+    setEditingId(null);
+  };
+
+  return (
+    <div className="tab-bar">
+      <div className="tabs-container">
+        {tabs.map(tab => (
+          <div
+            key={tab.id}
+            className={`tab ${activeId === tab.id ? 'active' : ''}`}
+            onClick={() => onSelect(tab.id)}
+            onDoubleClick={() => handleDoubleClick(tab)}
+          >
+            {editingId === tab.id ? (
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onBlur={() => handleRenameSubmit(tab.id)}
+                onKeyDown={(e) => e.key === 'Enter' && handleRenameSubmit(tab.id)}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span>{tab.name}</span>
+            )}
+            <button
+              className="close-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose(tab.id);
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <button className="add-tab-btn" onClick={onAdd}>
+          + New Tab
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default TabBar;
+```
+
+```text
+// src/components/TabBar.css
+```
+```css
+.tab-bar {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 1rem;
+}
+
+body.dark .tab-bar {
+  background: #1f2937;
+  border-bottom-color: #374151;
+}
+
+.tabs-container {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.tab.active {
+  background: white;
+  border-bottom: 2px solid #3b82f6;
+  font-weight: 500;
+}
+
+body.dark .tab {
+  background: #374151;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
+body.dark .tab.active {
+  background: #1f2937;
+  border-bottom-color: #60a5fa;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.close-btn:hover {
+  color: #ef4444;
+}
+
+.add-tab-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  color: #3b82f6;
+  cursor: pointer;
+}
+```
+
+```text
+// src/components/RequestPanel.tsx
+```
+```typescript
+import React, { useEffect } from 'react';
+import { RequestData } from '../types';
+import KeyValueEditor from './KeyValueEditor';
+import RawBodyEditor from './RawBodyEditor';
+import './RequestPanel.css';
+
+interface Props {
+  request: RequestData;
+  onChange: (updates: Partial<RequestData>) => void;
+  onSend: () => void;
+  onClear: () => void;
+  loading: boolean;
+}
+
+const buildUrlFromParams = (baseUrl: string, params: RequestData['params']): string => {
+  const [base] = baseUrl.split('?');
+  const searchParams = new URLSearchParams();
+  params.forEach(p => {
+    if (p.key.trim()) {
+      searchParams.append(p.key, p.value);
+    }
+  });
+  const qs = searchParams.toString();
+  return qs ? `${base}?${qs}` : base;
+};
+
+const RequestPanel: React.FC<Props> = ({ request, onChange, onSend, onClear, loading }) => {
+  const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+
+  useEffect(() => {
+    const newUrl = buildUrlFromParams(request.url, request.params);
+    if (newUrl !== request.url) {
+      onChange({ url: newUrl });
+    }
+  }, [request.params]);
+
+  return (
+    <div className="request-panel">
+      <div className="url-bar">
+        <select
+          value={request.method}
+          onChange={(e) => onChange({ method: e.target.value })}
+          className="method-select"
+        >
+          {methods.map(m => (
+            <option key={m}>{m}</option>
+          ))}
+        </select>
+        <input
+          type="text"
+          value={request.url}
+          onChange={(e) => onChange({ url: e.target.value })}
+          placeholder="https://api.example.com/endpoint"
+          className="url-input"
+        />
+        <button onClick={onSend} disabled={loading} className="send-btn">
+          {loading ? 'Sending...' : 'Send'}
+        </button>
+        <button onClick={onClear} className="clear-btn">
+          Clear All
+        </button>
+      </div>
+
+      <div className="request-sections">
+        <div className="section">
+          <h3>Query Parameters</h3>
+          <KeyValueEditor
+            pairs={request.params}
+            onChange={(newParams) => onChange({ params: newParams })}
+          />
+        </div>
+
+        <div className="section">
+          <h3>Headers</h3>
+          <KeyValueEditor
+            pairs={request.headers}
+            onChange={(newHeaders) => onChange({ headers: newHeaders })}
+          />
+        </div>
+
+        <div className="section">
+          <h3>Body (Raw Text / JSON)</h3>
+          <RawBodyEditor
+            value={request.body}
+            onChange={(newBody) => onChange({ body: newBody })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RequestPanel;
+```
+
+```text
+// src/components/RequestPanel.css
+```
+```css
+.request-panel {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.url-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.method-select {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: white;
+}
+
+body.dark .method-select {
+  background: #374151;
+  border-color: #4b5563;
+  color: white;
+}
+
+.url-input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+}
+
+.send-btn, .clear-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.send-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.clear-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.request-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.section h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+```
+
+```text
+// src/components/KeyValueEditor.tsx
+```
+```typescript
+import React from 'react';
+import { KeyValuePair } from '../types';
+import './KeyValueEditor.css';
+
+interface Props {
+  pairs: KeyValuePair[];
+  onChange: (newPairs: KeyValuePair[]) => void;
+}
+
+const KeyValueEditor: React.FC<Props> = ({ pairs, onChange }) => {
+  const updatePair = (index: number, field: keyof KeyValuePair, value: string) => {
+    const newPairs = [...pairs];
+    newPairs[index][field] = value;
+    onChange(newPairs);
+  };
+
+  const addPair = () => {
+    onChange([...pairs, { key: '', value: '' }]);
+  };
+
+  const removePair = (index: number) => {
+    const newPairs = pairs.filter((_, i) => i !== index);
+    onChange(newPairs);
+  };
+
+  return (
+    <div className="kv-editor">
+      {pairs.map((pair, idx) => (
+        <div key={idx} className="kv-row">
+          <input
+            type="text"
+            placeholder="Key"
+            value={pair.key}
+            onChange={(e) => updatePair(idx, 'key', e.target.value)}
+          />
+          <span>:</span>
+          <input
+            type="text"
+            placeholder="Value"
+            value={pair.value}
+            onChange={(e) => updatePair(idx, 'value', e.target.value)}
+          />
+          <button onClick={() => removePair(idx)} className="remove-btn">✕</button>
+        </div>
+      ))}
+      <button onClick={addPair} className="add-btn">+ Add</button>
+    </div>
+  );
+};
+
+export default KeyValueEditor;
+```
+
+```text
+// src/components/KeyValueEditor.css
+```
+```css
+.kv-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kv-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.kv-row input {
+  flex: 1;
+  padding: 0.4rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+
+.remove-btn {
+  background: #ef4444;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.add-btn {
+  background: #10b981;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  width: fit-content;
+}
+```
+
+```text
+// src/components/RawBodyEditor.tsx
+```
+```typescript
+import React from 'react';
+import './RawBodyEditor.css';
+
+interface Props {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const RawBodyEditor: React.FC<Props> = ({ value, onChange }) => {
+  return (
+    <div className="raw-body-editor">
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder='Enter raw body (text or JSON) ...'
+        rows={8}
+      />
+    </div>
+  );
+};
+
+export default RawBodyEditor;
+```
+
+```text
+// src/components/RawBodyEditor.css
+```
+```css
+.raw-body-editor textarea {
+  width: 100%;
+  font-family: monospace;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  resize: vertical;
+}
+
+body.dark .raw-body-editor textarea {
+  background: #1f2937;
+  color: #f9fafb;
+  border-color: #4b5563;
+}
+```
+
+```text
+// src/components/ResponsePanel.tsx
+```
+```typescript
+import React from 'react';
+import './ResponsePanel.css';
+
+interface Props {
+  response: { status: number | null; body: string; error: string | null };
+  loading: boolean;
+}
+
+const ResponsePanel: React.FC<Props> = ({ response, loading }) => {
+  return (
+    <div className="response-panel">
+      <div className="response-header">
+        <h3>Response</h3>
+        {response.status && (
+          <span className={`status-code status-${Math.floor(response.status / 100)}00`}>
+            Status: {response.status}
+          </span>
+        )}
+      </div>
+      <div className="response-body">
+        {loading && <div className="loading">Sending request...</div>}
+        {response.error && <pre className="error">{response.error}</pre>}
+        {!loading && !response.error && (
+          <pre>{response.body || '(No response body)'}</pre>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ResponsePanel;
+```
+
+```text
+// src/components/ResponsePanel.css
+```
+```css
+.response-panel {
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 1rem;
+  max-height: 40%;
+  overflow: auto;
+}
+
+body.dark .response-panel {
+  background: #111827;
+  border-top-color: #374151;
+}
+
+.response-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.status-code {
+  font-weight: bold;
+  padding: 0.2rem 0.5rem;
+  border-radius: 20px;
+}
+
+.status-200 { background: #10b981; color: white; }
+.status-400 { background: #f59e0b; color: white; }
+.status-500 { background: #ef4444; color: white; }
+
+.response-body pre {
+  background: white;
+  padding: 0.75rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.875rem;
+}
+
+body.dark .response-body pre {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.error {
+  color: #ef4444;
+  background: #fee2e2;
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+```
+
+```text
+// src/components/CollectionsSidebar.tsx
+```
+```typescript
+import React, { useState } from 'react';
+import { Collection, RequestData } from '../types';
+import './CollectionsSidebar.css';
+
+interface Props {
+  collections: Collection[];
+  history: RequestData[];
+  onSaveCurrent: (collectionName: string) => void;
+  onLoadRequest: (request: RequestData) => void;
+  onLoadHistory: (request: RequestData) => void;
+  onDeleteRequest: (collectionName: string, requestIndex: number) => void;
+  onDeleteCollection: (collectionName: string) => void;
+  onClearHistory: () => void;
+  onExport: () => void;
+  onImport: (file: File) => void;
+}
+
+const CollectionsSidebar: React.FC<Props> = ({
+  collections,
+  history,
+  onSaveCurrent,
+  onLoadRequest,
+  onLoadHistory,
+  onDeleteRequest,
+  onDeleteCollection,
+  onClearHistory,
+  onExport,
+  onImport,
+}) => {
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (name: string) => {
+    const newSet = new Set(expandedCollections);
+    if (newSet.has(name)) newSet.delete(name);
+    else newSet.add(name);
+    setExpandedCollections(newSet);
+  };
+
+  const handleSave = () => {
+    if (newCollectionName.trim()) {
+      onSaveCurrent(newCollectionName.trim());
+      setNewCollectionName('');
+      setShowSaveDialog(false);
+    }
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      onImport(e.target.files[0]);
+    }
+  };
+
+  const formatHistoryItem = (req: RequestData) => {
+    const shortUrl = req.url.length > 50 ? req.url.substring(0, 47) + '...' : req.url;
+    return `${req.method} ${shortUrl}`;
+  };
+
+  return (
+    <div className="sidebar">
+      <div className="sidebar-header">
+        <h3>Collections</h3>
+        <div className="sidebar-buttons">
+          <button onClick={() => setShowSaveDialog(true)}>💾 Save Current</button>
+          <button onClick={onExport}>📤 Export</button>
+          <label className="import-label">
+            📥 Import
+            <input type="file" accept=".json" onChange={handleImport} hidden />
+          </label>
+        </div>
+      </div>
+
+      {showSaveDialog && (
+        <div className="save-dialog">
+          <input
+            type="text"
+            placeholder="Collection name"
+            value={newCollectionName}
+            onChange={(e) => setNewCollectionName(e.target.value)}
+          />
+          <button onClick={handleSave}>Save</button>
+          <button onClick={() => setShowSaveDialog(false)}>Cancel</button>
+        </div>
+      )}
+
+      <div className="collections-list">
+        {collections.map(coll => (
+          <div key={coll.name} className="collection-item">
+            <div className="collection-header">
+              <div className="collection-title" onClick={() => toggleExpand(coll.name)}>
+                <span className="toggle-icon">{expandedCollections.has(coll.name) ? '▼' : '▶'}</span>
+                <strong>{coll.name}</strong>
+              </div>
+              <button
+                className="delete-collection-btn"
+                onClick={() => onDeleteCollection(coll.name)}
+                title="Delete collection"
+              >
+                🗑️
+              </button>
+            </div>
+            {expandedCollections.has(coll.name) && (
+              <div className="requests-list">
+                {coll.requests.map((req, idx) => (
+                  <div key={idx} className="request-item-container">
+                    <div
+                      className="request-item"
+                      onClick={() => onLoadRequest(req)}
+                    >
+                      {req.name || `${req.method} ${req.url.substring(0, 40)}`}
+                    </div>
+                    <button
+                      className="delete-request-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteRequest(coll.name, idx);
+                      }}
+                      title="Delete request"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="history-section">
+        <div className="history-header">
+          <h3>History</h3>
+          {history.length > 0 && (
+            <button className="clear-history-btn" onClick={onClearHistory}>
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="history-list">
+          {history.map((req, idx) => (
+            <div
+              key={idx}
+              className="history-item"
+              onClick={() => onLoadHistory(req)}
+            >
+              {formatHistoryItem(req)}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CollectionsSidebar;
+```
+
+```text
+// src/components/CollectionsSidebar.css
+```
+```css
+.sidebar {
+  width: 260px;
+  background: #fff;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+body.dark .sidebar {
+  background: #1f2937;
+  border-right-color: #374151;
+}
+
+.sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sidebar-header h3 {
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sidebar-buttons button, .import-label {
+  background: #e5e7eb;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+body.dark .sidebar-buttons button, body.dark .import-label {
+  background: #374151;
+  color: white;
+}
+
+.save-dialog {
+  padding: 0.5rem;
+  background: #f3f4f6;
+  margin: 0.5rem;
+  border-radius: 6px;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.collections-list {
+  flex: 0 1 auto;
+  padding: 0.5rem;
+}
+
+.collection-item {
+  margin-bottom: 0.5rem;
+}
+
+.collection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+}
+
+.collection-title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  flex: 1;
+}
+
+.toggle-icon {
+  font-size: 0.75rem;
+  width: 12px;
+}
+
+.delete-collection-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.delete-collection-btn:hover {
+  opacity: 1;
+  background: #fee2e2;
+}
+
+.requests-list {
+  margin-left: 1.25rem;
+}
+
+.request-item-container {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.request-item {
+  flex: 1;
+  padding: 0.25rem 0.25rem 0.25rem 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  border-radius: 4px;
+}
+
+.request-item:hover {
+  background: #e5e7eb;
+}
+
+body.dark .request-item:hover {
+  background: #374151;
+}
+
+.delete-request-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: #6b7280;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.delete-request-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.history-section {
+  border-top: 1px solid #e5e7eb;
+  padding: 0.5rem;
+  flex: 1;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.clear-history-btn {
+  background: #ef4444;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.history-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.history-item {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item:hover {
+  background: #e5e7eb;
+}
+
+body.dark .history-item:hover {
+  background: #374151;
+}
+```
+
+```text
+// src/components/Settings.tsx
+```
+```typescript
+import React from 'react';
+import './Settings.css';
+
+interface Props {
+  darkMode: boolean;
+  setDarkMode: (val: boolean) => void;
+}
+
+const Settings: React.FC<Props> = ({ darkMode, setDarkMode }) => {
+  return (
+    <div className="settings-bar">
+      <button onClick={() => setDarkMode(!darkMode)} className="dark-mode-toggle">
+        {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+      </button>
+    </div>
+  );
+};
+
+export default Settings;
+```
+
+```text
+// src/components/Settings.css
+```
+```css
+.settings-bar {
+  padding: 0.5rem 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: right;
+}
+
+body.dark .settings-bar {
+  background: #111827;
+  border-bottom-color: #374151;
+}
+
+.dark-mode-toggle {
+  background: #e5e7eb;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+}
+
+body.dark .dark-mode-toggle {
+  background: #374151;
+  color: white;
+}
+```
+
+---
+
+## Project File Structure
+
+```
+postman-clone/
+├── package.json
+├── tsconfig.json
+├── tsconfig.node.json
+├── vite.config.ts
+├── index.html
+└── src/
+    ├── main.tsx
+    ├── index.css
+    ├── vite-env.d.ts
+    ├── App.tsx
+    ├── App.css
+    ├── types/
+    │   └── index.ts
+    ├── hooks/
+    │   └── useLocalStorage.ts
+    ├── utils/
+    │   ├── validation.ts
+    │   └── httpClient.ts
+    └── components/
+        ├── TabBar.tsx
+        ├── TabBar.css
+        ├── RequestPanel.tsx
+        ├── RequestPanel.css
+        ├── ResponsePanel.tsx
+        ├── ResponsePanel.css
+        ├── CollectionsSidebar.tsx
+        ├── CollectionsSidebar.css
+        ├── KeyValueEditor.tsx
+        ├── KeyValueEditor.css
+        ├── RawBodyEditor.tsx
+        ├── RawBodyEditor.css
+        ├── Settings.tsx
+        └── Settings.css
+```
+
+---
+
+## Steps to Run
+
+1. **Install Node.js** (if not already) from [nodejs.org](https://nodejs.org).  
+   Verify:  
+   ```bash
+   node --version
+   npm --version
+   ```
+
+2. **Create the folder** `postman-clone` and place all files as per the structure above.
+
+3. **Open a terminal** in the `postman-clone` folder.
+
+4. **Install dependencies**:  
+   ```bash
+   npm install
+   ```
+
+5. **Start the dev server**:  
+   ```bash
+   npm run dev
+   ```
+
+6. **Open** `http://localhost:5173` in your browser.
