@@ -1,0 +1,22 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+body.dark {
+  background: #111827;
+  color: #f9fafb;
+}

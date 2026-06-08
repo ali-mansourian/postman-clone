@@ -1,0 +1,48 @@
+.response-panel {
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 1rem;
+  max-height: 40%;
+  overflow: auto;
+}
+
+body.dark .response-panel {
+  background: #111827;
+  border-top-color: #374151;
+}
+
+.response-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.status-code {
+  font-weight: bold;
+  padding: 0.2rem 0.5rem;
+  border-radius: 20px;
+}
+
+.status-200 { background: #10b981; color: white; }
+.status-400 { background: #f59e0b; color: white; }
+.status-500 { background: #ef4444; color: white; }
+
+.response-body pre {
+  background: white;
+  padding: 0.75rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.875rem;
+}
+
+body.dark .response-body pre {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.error {
+  color: #ef4444;
+  background: #fee2e2;
+  padding: 0.5rem;
+  border-radius: 6px;
+}

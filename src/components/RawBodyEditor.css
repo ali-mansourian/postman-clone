@@ -1,0 +1,14 @@
+.raw-body-editor textarea {
+  width: 100%;
+  font-family: monospace;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  resize: vertical;
+}
+
+body.dark .raw-body-editor textarea {
+  background: #1f2937;
+  color: #f9fafb;
+  border-color: #4b5563;
+}

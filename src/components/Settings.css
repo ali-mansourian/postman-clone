@@ -1,0 +1,23 @@
+.settings-bar {
+  padding: 0.5rem 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: right;
+}
+
+body.dark .settings-bar {
+  background: #111827;
+  border-bottom-color: #374151;
+}
+
+.dark-mode-toggle {
+  background: #e5e7eb;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+}
+
+body.dark .dark-mode-toggle {
+  background: #374151;
+  color: white;
+}

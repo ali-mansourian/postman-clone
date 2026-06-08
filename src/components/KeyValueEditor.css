@@ -1,0 +1,35 @@
+.kv-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kv-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.kv-row input {
+  flex: 1;
+  padding: 0.4rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+
+.remove-btn {
+  background: #ef4444;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.add-btn {
+  background: #10b981;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  width: fit-content;
+}
